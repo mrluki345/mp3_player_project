@@ -20,6 +20,8 @@ Bounce btn_screen = Bounce();
 enum DeviceState { STATE_PLAYER, STATE_MENU };
 DeviceState currentState = STATE_PLAYER;
 
+bool Song_playing = false;
+
 void setup() {
   Serial.begin(115200);
   while (!Serial); // Wait for you to open the Serial Monitor
@@ -54,8 +56,11 @@ void loop() {
     // IF WE ARE ON THE MUSIC PLAYER PAGE
     // -----------------------------------
     case STATE_PLAYER:
+    drawPlayerScreen("Song Title", 75, Song_playing);
+
       if (btn_play.fell()) {
         Serial.println("[PLAYER] Action: Toggled Play/Pause");
+        Song_playing = !Song_playing;
       }
       if (btn_next.fell()) {
         Serial.println("[PLAYER] Action: Skipped Song");
