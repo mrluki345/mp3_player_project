@@ -1,5 +1,7 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <Bounce2.h>
+#include <U8g2lib.h>
 #include "display_ui.h"
 
 // Pins
@@ -8,6 +10,7 @@ const int PIN_NEXT = 3;
 const int PIN_PREV = 4;
 const int PIN_MENU = 5;
 const int PIN_SCREEN = 6;
+const int PIN_SLIDER = 14;
 
 // Buttons
 Bounce btn_play = Bounce();
@@ -20,12 +23,23 @@ Bounce btn_screen = Bounce();
 enum DeviceState { STATE_PLAYER, STATE_MENU };
 DeviceState currentState = STATE_PLAYER;
 
+int currentVolume = 0;
+unsigned long lastVolRead = 0; 
+
+bool songPlaying = false;
+
+int Menu_selected_item = 0;
+int numberMenuItems = 3; // number of intems in the menu, used to limit the slider input for menu navigation
+
 void setup() {
-  Serial.begin(115200);
-  while (!Serial); // Wait for you to open the Serial Monitor
 
   initDisplay(); // Wake up the OLED!
 
+  Serial.begin(115200);
+  while (!Serial); // Wait for you to open the Serial Monitor
+  Serial.println("DISPLAY OK");
+
+  
   Serial.println("--- SYSTEM BOOT ---");
   Serial.println("Current State: PLAYER");
 
@@ -48,15 +62,39 @@ void loop() {
   btn_menu.update();
   btn_screen.update();
 
+  // Read the volume every 100 milliseconds so we don't spam the processor
+  if (millis() - lastVolRead > 100) {
+    int rawValue = analogRead(PIN_SLIDER);
+    
+    // map(value, fromLow, fromHigh, toLow, toHigh)
+    int mappedVolume = map(rawValue, 0, 1024, 0, 100);
+
+    // Only print if the volume actually changed!
+    if (mappedVolume != currentVolume) {
+      currentVolume = mappedVolume;
+      Serial.print("Volume: ");
+      Serial.print(currentVolume);
+      Serial.println("%");
+    }
+    lastVolRead = millis();
+  }
+
+  int SliderMenuSelection = map(analogRead(PIN_SLIDER), 0, 1024, 0, numberMenuItems-1);
+  Menu_selected_item = SliderMenuSelection;
+
   switch (currentState) {
     
     // -----------------------------------
     // IF WE ARE ON THE MUSIC PLAYER PAGE
     // -----------------------------------
     case STATE_PLAYER:
+        drawPlayerScreen("Song Title", currentVolume, songPlaying);
+
       if (btn_play.fell()) {
         Serial.println("[PLAYER] Action: Toggled Play/Pause");
+        songPlaying = !songPlaying;
       }
+
       if (btn_next.fell()) {
         Serial.println("[PLAYER] Action: Skipped Song");
       }
@@ -74,18 +112,19 @@ void loop() {
     // -----------------------------------
     case STATE_MENU:
       if (btn_next.fell()) {
-        Serial.println("[MENU] Action: Scrolled Down");
+        Serial.println("[MENU] Action: Entered Folder");
+      }
+      if (btn_prev.fell()) {
+        Serial.println("[MENU] Action: Exited folder");
       }
       if (btn_play.fell()) {
-        Serial.println("[MENU] Action: Selected Folder");
+        Serial.println("[MENU] Action: Selected");
       }
       if (btn_menu.fell()) {
         Serial.println("[TRANSITION] Leaving Menu -> Entering Player");
         currentState = STATE_PLAYER;
       }
-      if (btn_prev.fell()) {
-        Serial.println("[MENU] Action: Exiting Folder");
-      }
+      drawMenuScreen(3, Menu_selected_item);
       break;
   
   }

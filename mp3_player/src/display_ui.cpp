@@ -1,10 +1,28 @@
-#include "display_ui.h"
+#include <Arduino.h>
 #include <U8g2lib.h>
+#include "display_ui.h"
 
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+// U8X8 uses no memory buffer. It draws text directly to the glass.
+// clock=13, data=11, cs=10, dc=9, reset=8
+U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, 13, 11, 10, 9, 8);
 
 void initDisplay() {
+  // 2. The Manual Reset Hammer (Wakes up the SSD1306)
+  pinMode(8, OUTPUT);       
+  digitalWrite(8, LOW);     
+  delay(50);                
+  digitalWrite(8, HIGH);    
+  delay(50);                
+  
+  // 3. The Speed Limit (Stops the Teensy from crashing the screen)
+  u8g2.setBusClock(4000000); 
+  
+  // 4. Finally, start the screen
   u8g2.begin();
+  u8g2.setContrast(255);
+  
+  // Enable dithering for better grayscale effects
+  u8g2.setDrawColor(1);  // Set draw color to white
 }
 
 void toggleScreenPower(bool turnOn) {
@@ -29,26 +47,28 @@ void drawPlayerScreen(const char* songTitle, int volume, bool isPlaying) {
   }
 
   // Volume Bar
-  u8g2.drawFrame(0, 50, 128, 10);
-  int barWidth = map(volume, 0, 100, 0, 128);
+  u8g2.drawFrame(0, 50, 124, 10);
+  int barWidth = map(volume, 0, 99, 0, 122);
   u8g2.drawBox(0, 50, barWidth, 10);
   
   u8g2.sendBuffer();
 }
 
 // --- DESIGN 2: THE MENU ---
-void drawMenuScreen(int selectedItem) {
+void drawMenuScreen(int numberMenuItems, int selectedItem) {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB08_tr);
 
   // A dummy list of folders
-  const char* menuItems[3] = {"1. Playlists", "2. Artists", "3. Albums"};
+  const char* menuItems[] = {"1. Playlists", "2. Artists", "3. Albums", "4. Songs", "5. Genres", "6. Settings", "7. About", "8. Help", "9. Exit"};
+  int maxItems = sizeof(menuItems) / sizeof(menuItems[0]);
+  if (numberMenuItems > maxItems) numberMenuItems = maxItems; // Prevent out-of-bounds
 
   // Draw the list, and put an arrow next to the selected one
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < numberMenuItems; i++) {
     int yPos = 20 + (i * 15); // Space them out vertically
     
-    if (i == selectedItem) {
+    if (i == selectedItem){
       u8g2.drawStr(0, yPos, "->"); // The selector arrow
     }
     
