@@ -3,13 +3,13 @@
 #include "display_ui.h"
 
 // U8X8 uses no memory buffer. It draws text directly to the glass.
-// clock=13, data=11, cs=10, dc=9, reset=8
-U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, 13, 11, 10, 9, 8);
+// clock=13, data=11, cs=10, dc=9, reset=12
+U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, 13, 11, 10, 9, 12);
 
 void initDisplay() {
   // 2. The Manual Reset Hammer (Wakes up the SSD1306)
-  pinMode(8, OUTPUT);       
-  digitalWrite(8, LOW);     
+  pinMode(12, OUTPUT);       
+  digitalWrite(12, LOW);     
   delay(50);                
   digitalWrite(8, HIGH);    
   delay(50);                
