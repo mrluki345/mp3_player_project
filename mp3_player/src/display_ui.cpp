@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
+#include <string.h>
 #include "display_ui.h"
 
 // U8X8 uses no memory buffer. It draws text directly to the glass.
 // clock=13, data=11, cs=10, dc=9, reset=12
-U8G2_SH1106_128X64_NONAME_F_4W_SW_SPI u8g2(U8G2_R0, 13, 11, 10, 9, 12);
+U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI u8g2(U8G2_R0, 13, 11, 10, 9, 12);
 
 void initDisplay() {
   // 2. The Manual Reset Hammer (Wakes up the SSD1306)
@@ -31,55 +32,11 @@ void toggleScreenPower(bool turnOn) {
 }
 
 // --- DESIGN 1: THE PLAYER ---
-void drawPlayerScreen1(const char* songTitle, const char* Artist, int volume, bool isPlaying) {
-  u8g2.clearBuffer();
-
-  u8g2.setFontMode(1);
-  u8g2.setBitmapMode(1);
-
-  u8g2.setFont(u8g2_font_t0_11b_tr);
-  u8g2.drawStr(1, 10, songTitle);
-
-  u8g2.setFont(u8g2_font_4x6_tr);
-  u8g2.drawStr(1, 18, "Artist");
-  
-  // spools
-  u8g2.drawEllipse(18, 36, 6, 6);
-  u8g2.drawEllipse(109, 36, 6, 6);
-  u8g2.drawEllipse(18, 36, 16, 16);
-  u8g2.drawEllipse(15, 59, 2, 2);
-  u8g2.drawEllipse(112, 59, 2, 2);
-
-  //tape
-  u8g2.drawLine(13, 60, 3, 42);
-  u8g2.drawLine(114, 60, 115, 38);
-  u8g2.drawLine(15, 61, 111, 61);
-
-  //"progress bar"
-  u8g2.drawFrame(21, 55, 86, 4);
-
-  //volume bar
-  u8g2.drawLine(123, 2, 125, 2);
-  u8g2.drawLine(123, 27, 125, 27);
-  u8g2.drawLine(124, 3, 124, 27);
-  u8g2.drawLine(123, map(volume, 0, 100, 3, 26), 125, map(volume, 0, 100, 3, 26));
-
-  u8g2.sendBuffer();
-}
-
 void drawPlayerScreen2(const char* songTitle, const char* Artist, int volume, int progress) {
   u8g2.clearBuffer();
     
   u8g2.setFontMode(1);
   u8g2.setBitmapMode(1);
-
-  // Song title in big font
-  u8g2.setFont(u8g2_font_profont15_tr);
-  u8g2.drawStr(18, 16, songTitle);
-
-  // Artist name in smaller font
-  u8g2.setFont(u8g2_font_profont10_tr);
-  u8g2.drawStr(18, 24, Artist);
 
   //volume container
   u8g2.drawLine(18, 35, 88, 35);
@@ -90,43 +47,128 @@ void drawPlayerScreen2(const char* songTitle, const char* Artist, int volume, in
   u8g2.setFont(u8g2_font_5x7_tr);
   u8g2.drawStr(92, 37, String(volume).c_str());
 
-  //Dithered empty progress bar
-  for (int y = 41; y < 41 + 11; y++) {
-    
-    for (int x = 18; x < 18 + 88; x++) {
-      
-      if ((x + y) % 2 == 0) {
-        u8g2.drawPixel(x, y);
-      } 
-      
-    }
-  }
+  //song info
+  u8g2.setFont(u8g2_font_6x12_tr);
+  String songInfo = String(songTitle) + " - " + Artist;
+  scrollingText(
+        u8g2,
+        songInfo.c_str(),
+        10, 10,       // Box position
+        108, 16,      // Box width and height
+        (35.0f),        // Speed in pixels/second
+        (0),         // Pause duration (ms)
+        (0)              // Gap between repetitions
+    );
+
+  // Draw the dithered background for the progress bar
+  drawDither(0, 54, 3, 128);
   //Filled progress bar
-  u8g2.drawBox(18, 41, map(progress, 0, 100, 0, 88), 11);
+  u8g2.drawBox(0, 54, map(progress, 0, 100, 0, 128), 3);
+
+  //song timestamps
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.drawStr(0, 64, "0:00");  // Replace with actual timestamps if available
+  u8g2.drawLine(17, 61, 20, 61); // Separator line
+  u8g2.drawStr(23, 64, "3:24");  // Replace with actual timestamps if available
+
+  //next song indicator
+  u8g2.drawStr(43, 64, ">>");
+  u8g2.drawStr(52, 64, "Next Song Title..."); // Replace with actual next song title if available
 
   u8g2.sendBuffer();
 }
 
 // --- DESIGN 2: THE MENU ---
-void drawMenuScreen(int numberMenuItems, int selectedItem) {
+void drawMenuScreenTest(const char* songTitle, const char* Artist, int volume, bool isPlaying) {
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tr);
 
-  // A dummy list of folders
-  const char* menuItems[] = {"1. Playlists", "2. Artists", "3. Albums", "4. Songs", "5. Genres", "6. Settings", "7. About", "8. Help", "9. Exit"};
-  int maxItems = sizeof(menuItems) / sizeof(menuItems[0]);
-  if (numberMenuItems > maxItems) numberMenuItems = maxItems; // Prevent out-of-bounds
+    u8g2.setBitmapMode(1);
 
-  // Draw the list, and put an arrow next to the selected one
-  for (int i = 0; i < numberMenuItems; i++) {
-    int yPos = 20 + (i * 15); // Space them out vertically
-    
-    if (i == selectedItem){
-      u8g2.drawStr(0, yPos, "->"); // The selector arrow
-    }
-    
-    u8g2.drawStr(20, yPos, menuItems[i]);
-  }
+    // top ribbon line
+    u8g2.drawLine(0, 10, 128, 10);
+
+    //menu list separators
+    u8g2.drawLine(0, 20, 128, 20);
+    u8g2.drawLine(0, 30, 128, 30);
+    u8g2.drawLine(0, 40, 128, 40);
+    u8g2.drawLine(0, 50, 128, 50);
+    u8g2.drawLine(0, 60, 128, 60);
+
+    //battery percent (top right)
+    u8g2.setFont(u8g2_font_t0_12b_mr);
+    char volumeText[12];
+    snprintf(volumeText, sizeof(volumeText), "%d%%", volume);
+    int volumeX = (volume >= 103) ? 105 : ((volume > 9) ? 111 : 117);
+    u8g2.drawStr(volumeX, 8, volumeText);
 
   u8g2.sendBuffer();
+}
+
+void drawDither(int startX, int startY, int height, int width) {
+
+  for (int y = startY; y < startY + height; y++) {
+    for (int x = startX; x < startX + width; x++) {
+      
+      // The modulo math creates a 50% checkerboard dither
+      if ((x + y) % 2 == 0) { 
+        u8g2.drawPixel(x, y);
+      }
+    }
+  }
+}
+
+void scrollingText(
+    U8G2& u8g2,
+    const char* text,
+    int x, int y,
+    int w, int h,
+    float speed,
+    unsigned long pauseMs,
+    int gap
+) {
+    static float scrollX = 0;
+    static unsigned long lastTime = 0;
+    static unsigned long pauseStart = 0;
+    static bool initialized = false;
+    static bool scrolling = true;
+    static const char* previousText = nullptr;
+
+    unsigned long now = millis();
+    int textW = u8g2.getStrWidth(text);
+
+    if (!initialized || previousText != text) {
+        scrollX = w;
+        lastTime = now;
+        initialized = true;
+        scrolling = true;
+        previousText = text;
+    }
+
+    if (scrolling) {
+        float elapsed = (now - lastTime) / 1000.0f;
+        scrollX -= speed * elapsed;
+        lastTime = now;
+
+        // One complete pass finished
+        if (scrollX <= -textW) {
+            scrolling = false;
+            pauseStart = now;
+        }
+    } else {
+        // Wait, then restart from the right
+        if (now - pauseStart >= pauseMs) {
+            scrollX = w;
+            scrolling = true;
+            lastTime = now;
+        }
+    }
+
+    int baseline = y + (h + u8g2.getAscent()
+                        - u8g2.getDescent()) / 2;
+
+    u8g2.setClipWindow(x, y, x + w - 1, y + h - 1);
+
+    u8g2.drawStr(x + (int)scrollX, baseline, text);
+
+    u8g2.setMaxClipWindow();
 }

@@ -80,13 +80,13 @@ void setup() {
 
 void loop() {
 
-loopCounter++;
-  if (millis() - lastHeartbeat > 1000) { // Print exactly once per second
-    Serial.print("Loops per second: ");
-    Serial.println(loopCounter);
-    loopCounter = 0;
-    lastHeartbeat = millis();
-  }
+//loopCounter++;
+//  if (millis() - lastHeartbeat > 1000) { // Print exactly once per second
+//    Serial.print("Loops per second: ");
+//    Serial.println(loopCounter);
+//    loopCounter = 0;
+//    lastHeartbeat = millis();
+//  }
   
   btn_play.update();
   btn_next.update();
@@ -157,7 +157,7 @@ loopCounter++;
           drawPlayerScreen2("Brainstorm", "Artic Monkeys", currentVolume, SongTime);
           break;
         case STATE_MENU:
-          drawMenuScreen(3, Menu_selected_item);
+          drawMenuScreenTest("Brainstorm", "Artic Monkeys", currentVolume, songPlaying);
           break;
       }
     }
